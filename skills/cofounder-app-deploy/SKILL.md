@@ -585,6 +585,8 @@ Change the `plan` in the `accessories` JSON in the workflow. **For database acce
 
 ## Teardown
 
+Teardown permanently deletes the environment's VMs and data volumes. Never run it on your own initiative or from an ambiguous request. Before triggering it, tell the user which environment (`env_name` and zone) will be destroyed and that its data disks are deleted (only the daily snapshots remain), and wait for an explicit yes.
+
 See [references/teardown.md](references/teardown.md) for tearing down environments, inferring zone/env_name from existing workflows, and reading last run outputs.
 
 ## Disaster Recovery
