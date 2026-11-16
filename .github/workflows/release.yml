@@ -5,7 +5,7 @@
 # of the Azure → GitHub sync, and must match .claude-plugin/plugin.json.
 #
 # Verify an artifact with:
-#   gh attestation verify <artifact> --repo locaweb/cofounder
+#   gh attestation verify <artifact> --repo locaweb/cofounder-plugin
 
 name: Release
 

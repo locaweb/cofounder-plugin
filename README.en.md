@@ -8,7 +8,7 @@ An AI-powered co-founder that guides you from idea to a web app published on the
 
 [Clique aqui para a versão em Português](README.md)
 
-![cofounder in action](demo.webp)
+![cofounder in action](https://raw.githubusercontent.com/locaweb/cofounder-plugin/076f5befb0993b09676e970f1844a1345f693c46/demo.webp)
 
 ## What it does
 
@@ -16,10 +16,10 @@ The cofounder is a set of [skills](skills/) for your coding agent (Claude Code, 
 
 ## Installation
 
-Open a terminal in the folder where you want to create your project and run:
+Download `install.sh` from the latest GitHub Release and check it as described in [Verifying the installation](#verifying-the-installation). Then open a terminal in the folder where you want to create your project and run:
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://cofounder.locaweb.com.br/install.sh)"
+bash install.sh
 ```
 
 The script is idempotent (safe to run again) and:
@@ -35,7 +35,7 @@ Then open your agent in the same folder (for example, run `claude`) and say hi.
 Inside Claude Code, run:
 
 ```
-/plugin marketplace add locaweb/cofounder
+/plugin marketplace add locaweb/cofounder-plugin
 /plugin install cofounder@locaweb
 ```
 
@@ -46,7 +46,7 @@ To get updates automatically, turn on auto-update in `/plugin` → **Marketplace
 In your terminal, add the marketplace:
 
 ```
-codex plugin marketplace add locaweb/cofounder
+codex plugin marketplace add locaweb/cofounder-plugin
 ```
 
 Then open `codex`, run `/plugins`, install **cofounder** from the **locaweb** marketplace and start a new session. In your first session, approve the cofounder hook in `/hooks`: it activates the cofounder at the start of every session. Also in the first session, the cofounder asks for your approval once to configure the project (`.codex/config.toml` with full access, and the folder marked as trusted in Codex), so it can install tools and run commands without asking every time; this takes effect from the next session. To update, run `codex plugin marketplace upgrade locaweb`.
@@ -75,22 +75,22 @@ The skills are **static files installed locally** in your project: Markdown inst
 
 ### Verifying the installation
 
-Each version is published as a [GitHub Release](https://github.com/locaweb/cofounder/releases) with `install.sh`, a tarball of the `skills/` directory and a `SHA256SUMS` file. The artifacts carry provenance attestations proving they were built by the `release.yml` workflow from a specific commit of this repository. To verify them, use an authenticated [GitHub CLI](https://cli.github.com):
+Each version is published as a [GitHub Release](https://github.com/locaweb/cofounder-plugin/releases) with `install.sh`, a tarball of the `skills/` directory and a `SHA256SUMS` file. The artifacts carry provenance attestations proving they were built by the `release.yml` workflow from a specific commit of this repository. To verify them, use an authenticated [GitHub CLI](https://cli.github.com):
 
 ```bash
 VERSION=v0.26.1
-gh release download "$VERSION" --repo locaweb/cofounder --dir "cofounder-$VERSION"
+gh release download "$VERSION" --repo locaweb/cofounder-plugin --dir "cofounder-$VERSION"
 cd "cofounder-$VERSION"
 sha256sum -c SHA256SUMS   # on macOS: shasum -a 256 -c SHA256SUMS
-gh attestation verify install.sh --repo locaweb/cofounder
-gh attestation verify "cofounder-skills-$VERSION.tar.gz" --repo locaweb/cofounder
+gh attestation verify install.sh --repo locaweb/cofounder-plugin
+gh attestation verify "cofounder-skills-$VERSION.tar.gz" --repo locaweb/cofounder-plugin
 ```
 
 If everything passes, run the verified `install.sh` with `bash install.sh`.
 
 ## Support
 
-Found a problem or have a suggestion? Open an issue on [GitHub Issues](https://github.com/locaweb/cofounder/issues).
+Found a problem or have a suggestion? Open an issue on [GitHub Issues](https://github.com/locaweb/cofounder-plugin/issues).
 
 ## Legal
 

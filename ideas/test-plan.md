@@ -173,8 +173,8 @@ behavior the filesystem can't prove).
   still green; commit pushed.
 
 ### A7 — Deploy preview · A8 — Production + domain · A9 — Operations
-- **Assert (A7):** deploy workflow succeeds (`gh run watch`); `curl
-  https://<ip>.nip.io/up` → 200; **teardown runs and the env is gone**.
+- **Assert (A7):** deploy workflow succeeds (`gh run watch`); the health
+  check on `https://<ip>.nip.io/up` returns 200; **teardown runs and the env is gone**.
 - **Assert (A8):** prod workflow on a `v*` tag succeeds; custom domain resolves
   + serves valid Let's Encrypt TLS (use a dedicated test DNS zone with
   API-driven A records).
