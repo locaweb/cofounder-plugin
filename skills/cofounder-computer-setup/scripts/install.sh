@@ -30,7 +30,10 @@
 # from the Windows Start menu, not PowerShell or Command Prompt. Run it from
 # inside the project directory you want to set up:
 #
-#   /bin/bash -c "$(curl -fsSL https://cofounder.locaweb.com.br/install.sh)"
+#   /bin/bash install.sh
+#
+# (onboarding serves this same file from https://cofounder.locaweb.com.br/install.sh;
+# each GitHub Release also ships it with SHA256SUMS and a provenance attestation.)
 #
 # After it finishes, open a new terminal (so PATH picks up the new tools),
 # cd into your project, and open your agent (e.g. run `claude`).
@@ -90,13 +93,30 @@ install_macos() {
   setup_podman_machine_macos
 }
 
+# Homebrew's official installer, pinned to a commit of Homebrew/install and
+# checked against its SHA256 before it runs (same policy as mise below). To
+# bump: pick a newer commit, download its install.sh and update both values.
+HOMEBREW_INSTALL_COMMIT="e5b3c5834e3932c8aaa42deef4794076c9b0cbf0"
+HOMEBREW_INSTALL_SHA256="5f333bbe53bc490e51e7ccb1df8779b3dd6ee73a1a7379efda216edb08ccb148"
+
 install_homebrew_macos() {
   if have brew; then
     ok "Homebrew já está instalado"
     return
   fi
   info "Instalando o Homebrew (sua senha pode ser solicitada)..."
-  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  local tmp
+  tmp=$(mktemp)
+  curl -fsSL -o "$tmp" \
+    "https://raw.githubusercontent.com/Homebrew/install/${HOMEBREW_INSTALL_COMMIT}/install.sh"
+  # macOS ships shasum, not sha256sum.
+  if ! printf '%s  %s\n' "$HOMEBREW_INSTALL_SHA256" "$tmp" | shasum -a 256 -c - >/dev/null 2>&1; then
+    rm -f "$tmp"
+    err "O instalador do Homebrew baixado não confere com o SHA256 esperado. Instalação abortada."
+    exit 1
+  fi
+  /bin/bash "$tmp"
+  rm -f "$tmp"
   NEED_RESTART=1
   # Make brew available for the rest of this script
   if ! have brew; then
@@ -122,7 +142,7 @@ install_brew_pkg() {
 
 setup_podman_machine_macos() {
   # Check machine state directly — more reliable than `podman version` which
-  # may fail to reach the server in non-interactive shells (curl | bash).
+  # may fail to reach the server in non-interactive shells.
   if podman machine list --format '{{.Running}}' 2>/dev/null | grep -q 'true'; then
     ok "A máquina do Podman já está rodando"
     return
@@ -133,8 +153,8 @@ setup_podman_machine_macos() {
     info "Inicializando a máquina do Podman..."
     # Plain string (not bash array) for compatibility with macOS's bundled
     # /bin/bash 3.2 — under `set -u`, expanding an empty array errors out
-    # there. The curl-pipe-sh invocation uses /bin/bash directly and ignores
-    # this script's #!/usr/bin/env bash shebang.
+    # there. The documented invocation (`/bin/bash install.sh`) uses
+    # /bin/bash directly and ignores this script's #!/usr/bin/env bash shebang.
     local mem_arg=""
     local mem_bytes
     mem_bytes=$(sysctl -n hw.memsize 2>/dev/null || echo 0)

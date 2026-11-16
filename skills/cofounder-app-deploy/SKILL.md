@@ -452,7 +452,7 @@ Quick reference for interacting with deployed infrastructure. See [references/op
 | Connect to accessory (e.g. Postgres) | SSH into accessory VM -> `docker exec -it <repo-name>-db psql -U postgres` |
 | View app logs | SSH into web VM -> `docker logs $(docker ps -q --filter "label=service=<repo-name>") --tail 100` |
 | Check app health | `curl -s https://<web_ip>.nip.io/up` |
-| Shell into app container | SSH into web VM -> `docker exec -it $(docker ps -q --filter "label=service=<repo-name>") sh` |
+| Shell into app container | SSH into web VM -> `docker ps -q --filter "label=service=<repo-name>"` for the container ID, then `docker exec -it <container-id> sh` |
 
 ## Dockerfile Requirements
 

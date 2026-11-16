@@ -863,7 +863,7 @@ echo "== install.sh: mise download matches the pinned SHA256 → installed =="
 mi mi1 "$FAKE_MISE_SHA"
 expect "exit 0"                       test "$(rc mi1)" = 0
 expect "downloads the pinned release" grep -qE '/releases/download/v-test/mise-v-test-linux-(x64|arm64)' "$LOG/mi1.calls"
-refute "no curl | sh"                 grep -q 'mise.run' "$LOG/mi1.calls"
+refute "no remote installer script"    grep -q 'mise.run' "$LOG/mi1.calls"
 expect "mise installed, executable"   test -x "$BASE/mi1/.local/bin/mise"
 expect "installed file is the download" test "$("$BASE/mi1/.local/bin/mise")" = fake-mise
 

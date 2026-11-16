@@ -16,10 +16,10 @@ The cofounder is a set of [skills](skills/) for your coding agent (Claude Code, 
 
 ## Installation
 
-Open a terminal in the folder where you want to create your project and run:
+Download `install.sh` from the latest GitHub Release and check it as described in [Verifying the installation](#verifying-the-installation). Then open a terminal in the folder where you want to create your project and run:
 
 ```bash
-/bin/bash -c "$(curl -fsSL https://cofounder.locaweb.com.br/install.sh)"
+bash install.sh
 ```
 
 The script is idempotent (safe to run again) and:
