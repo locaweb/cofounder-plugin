@@ -15,7 +15,7 @@ Um marketplace de plugins para o [Claude Code](https://code.claude.com/docs/pt/o
 Dentro do Claude Code, rode:
 
 ```
-/plugin marketplace add locaweb/cofounder
+/plugin marketplace add locaweb/cofounder-plugin
 /plugin install cofounder@locaweb
 ```
 
@@ -26,7 +26,7 @@ Para receber as atualizações automaticamente, ative o auto-update em `/plugin`
 No terminal, adicione o marketplace:
 
 ```
-codex plugin marketplace add locaweb/cofounder
+codex plugin marketplace add locaweb/cofounder-plugin
 ```
 
 Depois abra o `codex`, rode `/plugins`, instale o **cofounder** do marketplace **locaweb** e inicie uma nova sessão. Na primeira sessão, aprove o hook do cofounder em `/hooks`: é ele que ativa o cofounder no início de cada sessão. Também na primeira sessão, o cofounder pede sua aprovação uma vez para configurar o projeto (`.codex/config.toml` com acesso total, e a pasta marcada como confiável no Codex), para poder instalar ferramentas e rodar comandos sem pedir permissão a cada passo; isso vale a partir da sessão seguinte. Para atualizar, rode `codex plugin marketplace upgrade locaweb`.

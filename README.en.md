@@ -35,7 +35,7 @@ Then open your agent in the same folder (for example, run `claude`) and say hi.
 Inside Claude Code, run:
 
 ```
-/plugin marketplace add locaweb/cofounder
+/plugin marketplace add locaweb/cofounder-plugin
 /plugin install cofounder@locaweb
 ```
 
@@ -46,7 +46,7 @@ To get updates automatically, turn on auto-update in `/plugin` → **Marketplace
 In your terminal, add the marketplace:
 
 ```
-codex plugin marketplace add locaweb/cofounder
+codex plugin marketplace add locaweb/cofounder-plugin
 ```
 
 Then open `codex`, run `/plugins`, install **cofounder** from the **locaweb** marketplace and start a new session. In your first session, approve the cofounder hook in `/hooks`: it activates the cofounder at the start of every session. Also in the first session, the cofounder asks for your approval once to configure the project (`.codex/config.toml` with full access, and the folder marked as trusted in Codex), so it can install tools and run commands without asking every time; this takes effect from the next session. To update, run `codex plugin marketplace upgrade locaweb`.
@@ -90,7 +90,7 @@ If everything passes, run the verified `install.sh` with `bash install.sh`.
 
 ## Support
 
-Found a problem or have a suggestion? Open an issue on [GitHub Issues](https://github.com/locaweb/cofounder/issues).
+Found a problem or have a suggestion? Open an issue on [GitHub Issues](https://github.com/locaweb/cofounder-plugin/issues).
 
 ## Legal
 

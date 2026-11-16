@@ -341,10 +341,12 @@ printf '{"version":2,"plugins":{"cofounder@acme":[{"scope":"user"}]}}\n' >"$REGI
 echo "== version-check: npx skills install → install: skills =="
 CLAUDE_CONFIG_DIR="$REGISTRY_HOME" VERSION_CHECK="$NPX_SKILL/scripts/version-check.sh" vc v2n "$BOTH" "99.0.0"
 expect "npx skills install"           file_contains "$LOG/v2n.log" "; install: skills"
+expect "reads the skills repo"        file_contains "$LOG/v2n.calls" "repos/locaweb/cofounder/contents/"
 
 echo "== version-check: Claude Code plugin install → plugin id from the registry =="
 CLAUDE_CONFIG_DIR="$REGISTRY_HOME" VERSION_CHECK="$PLUGIN_SKILL/scripts/version-check.sh" vc v2p "$BOTH" "99.0.0"
 expect "plugin install"               file_contains "$LOG/v2p.log" "; install: plugin cofounder@acme"
+expect "reads the plugin repo"        file_contains "$LOG/v2p.calls" "repos/locaweb/cofounder-plugin/contents/"
 CLAUDE_CONFIG_DIR="$BASE/no-registry" VERSION_CHECK="$PLUGIN_SKILL/scripts/version-check.sh" vc v2d "$BOTH" "99.0.0"
 expect "no registry → default id"     file_contains "$LOG/v2d.log" "; install: plugin cofounder@locaweb"
 
@@ -359,6 +361,7 @@ echo "== version-check: Codex plugin install → codex-plugin id from the cache 
 CODEX_HOME="$CODEX_HOME_T" CLAUDE_CONFIG_DIR="$REGISTRY_HOME" VERSION_CHECK="$CODEX_SKILL/scripts/version-check.sh" vc v2c "$BOTH" "99.0.0"
 expect "codex plugin install"         file_contains "$LOG/v2c.log" "; install: codex-plugin cofounder@acme"
 refute "not reported as Claude plugin" file_contains "$LOG/v2c.log" "; install: plugin "
+expect "codex reads the plugin repo"  file_contains "$LOG/v2c.calls" "repos/locaweb/cofounder-plugin/contents/"
 
 echo "== version-check: Claude plugin install unaffected by CODEX_HOME =="
 CODEX_HOME="$CODEX_HOME_T" CLAUDE_CONFIG_DIR="$REGISTRY_HOME" VERSION_CHECK="$PLUGIN_SKILL/scripts/version-check.sh" vc v2pc "$BOTH" "99.0.0"
@@ -376,7 +379,7 @@ vc v4 "$BOTH" "$LOCAL_VERSION" 1
 expect "VERSION_CURRENT via curl"     file_contains "$LOG/v4.log" "VERSION_CURRENT: $LOCAL_VERSION (via curl)"
 expect "checked gh auth status"       file_contains "$LOG/v4.calls" "gh auth status"
 refute "did not call gh api"          file_contains "$LOG/v4.calls" "gh api"
-expect "curl hit the GitHub API"      file_contains "$LOG/v4.calls" "https://api.github.com/repos/locaweb/cofounder/contents/.claude-plugin/plugin.json"
+expect "curl hit the plugin repo"     file_contains "$LOG/v4.calls" "https://api.github.com/repos/locaweb/cofounder-plugin/contents/.claude-plugin/plugin.json"
 
 echo "== version-check: gh not installed → curl fallback =="
 vc v5 "$CURL_ONLY" "$LOCAL_VERSION"
