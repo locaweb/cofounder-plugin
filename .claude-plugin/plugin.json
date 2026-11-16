@@ -2,13 +2,13 @@
   "name": "cofounder",
   "displayName": "Cofounder",
   "description": "Um cofundador que ajuda a desenvolver e publicar aplicações web.",
-  "version": "0.28.1",
+  "version": "0.28.2",
   "author": {
     "name": "Locaweb",
     "url": "https://www.locaweb.com.br"
   },
   "homepage": "https://cofounder.locaweb.com.br",
-  "repository": "https://github.com/leonardolimalw/cofounder-plugin",
+  "repository": "https://github.com/locaweb/cofounder-plugin",
   "license": "FSL-1.1-ALv2",
   "keywords": [
     "deploy",
@@ -19,7 +19,7 @@
   ],
   "icon": "./shared/brand/icon-512.png",
   "documentationUrl": "https://cofounder.locaweb.com.br/docs",
-  "supportUrl": "https://github.com/leonardolimalw/cofounder-plugin/issues",
+  "supportUrl": "https://github.com/locaweb/cofounder-plugin/issues",
   "privacyPolicyUrl": "https://cofounder.locaweb.com.br/privacidade",
   "termsOfServiceUrl": "https://cofounder.locaweb.com.br/termos"
 }
