@@ -1,22 +1,25 @@
 {
   "name": "cofounder",
-  "version": "0.28.0",
+  "version": "0.28.1",
   "description": "Um cofundador que ajuda a desenvolver e publicar aplicações web.",
   "author": {
     "name": "Locaweb"
   },
   "homepage": "https://cofounder.locaweb.com.br",
-  "repository": "https://github.com/locaweb/cofounder",
+  "repository": "https://github.com/leonardolimalw/cofounder-plugin",
   "license": "FSL-1.1-ALv2",
   "skills": "./skills/",
-  "hooks": "./hooks/hooks.json",
+  "requires_local_executor": true,
   "interface": {
     "displayName": "cofounder",
-    "shortDescription": "Da ideia ao app web publicado na internet.",
+    "shortDescription": "Do zero ao app web publicado",
     "longDescription": "Um cofundador movido por IA que conversa em linguagem simples, escreve o PRD com você, constrói o app, testa e publica na Locaweb Cloud. Não exige experiência com programação.",
     "developerName": "Locaweb",
     "category": "Productivity",
     "websiteURL": "https://cofounder.locaweb.com.br",
+    "privacyPolicyURL": "https://cofounder.locaweb.com.br/privacidade",
+    "termsOfServiceURL": "https://cofounder.locaweb.com.br/termos",
+    "supportURL": "https://github.com/leonardolimalw/cofounder-plugin/issues",
     "defaultPrompt": [
       "Tenho uma ideia de app e quero tirá-la do papel.",
       "Rode o app no meu computador.",
