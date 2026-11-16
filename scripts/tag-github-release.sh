@@ -5,7 +5,7 @@
 # differs from GitHub's, so the tag is created through the API, never pushed.
 set -euo pipefail
 
-REPO="locaweb/cofounder"
+REPO="locaweb/cofounder-plugin"
 
 sha=$(gh api "repos/$REPO/commits/main" --jq .sha)
 version=$(gh api -H "Accept: application/vnd.github.raw+json" \

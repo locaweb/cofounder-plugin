@@ -33,15 +33,15 @@ Depois abra o `codex`, rode `/plugins`, instale o **cofounder** do marketplace *
 
 ## Verificando a instalação
 
-Cada versão é publicada como um [GitHub Release](https://github.com/locaweb/cofounder/releases) com o `install.sh`, um tarball do diretório `skills/` e um `SHA256SUMS`. Os artefatos têm attestation de proveniência que prova que foram gerados pelo workflow `release.yml` a partir de um commit específico deste repositório. Para verificar, use o [GitHub CLI](https://cli.github.com) autenticado:
+Cada versão é publicada como um [GitHub Release](https://github.com/locaweb/cofounder-plugin/releases) com o `install.sh`, um tarball do diretório `skills/` e um `SHA256SUMS`. Os artefatos têm attestation de proveniência que prova que foram gerados pelo workflow `release.yml` a partir de um commit específico deste repositório. Para verificar, use o [GitHub CLI](https://cli.github.com) autenticado:
 
 ```bash
 VERSION=v0.26.1
-gh release download "$VERSION" --repo locaweb/cofounder --dir "cofounder-$VERSION"
+gh release download "$VERSION" --repo locaweb/cofounder-plugin --dir "cofounder-$VERSION"
 cd "cofounder-$VERSION"
 sha256sum -c SHA256SUMS   # no macOS: shasum -a 256 -c SHA256SUMS
-gh attestation verify install.sh --repo locaweb/cofounder
-gh attestation verify "cofounder-skills-$VERSION.tar.gz" --repo locaweb/cofounder
+gh attestation verify install.sh --repo locaweb/cofounder-plugin
+gh attestation verify "cofounder-skills-$VERSION.tar.gz" --repo locaweb/cofounder-plugin
 ```
 
 Se tudo passar, rode o `install.sh` verificado com `bash install.sh`.
