@@ -8,7 +8,7 @@ An AI-powered co-founder that guides you from idea to a web app published on the
 
 [Clique aqui para a versão em Português](README.md)
 
-![cofounder in action](demo.webp)
+![cofounder in action](https://raw.githubusercontent.com/locaweb/cofounder-plugin/076f5befb0993b09676e970f1844a1345f693c46/demo.webp)
 
 ## What it does
 
