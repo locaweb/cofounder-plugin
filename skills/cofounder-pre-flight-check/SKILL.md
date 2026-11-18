@@ -15,7 +15,7 @@ This is the first skill invoked at session start.
 
 ## Step 0 — Version Check
 
-<!-- COFOUNDER_VERSION: 0.28.3 -->
+<!-- COFOUNDER_VERSION: 0.29.0 -->
 
 The `COFOUNDER_VERSION` marker above contains the loaded version of the cofounder skills.
 
@@ -82,6 +82,20 @@ It sets `sandbox_mode = "danger-full-access"` and `approval_policy = "on-request
 - **`CODEX_SETTINGS_UPDATED: …`:** Tell the user the settings were saved and take effect in the next session: they should close Codex and open it again in this folder. Until then, commands that write outside the project need their approval. Proceed; do not stop the session for this.
 - **`CODEX_SETTINGS_UNTRUSTED`:** The user marked this project as untrusted in Codex, so nothing was changed and Codex keeps it read-only. Tell the user in plain language that the cofounder needs the folder to be trusted to install tools and run the app, and that they can trust it the next time Codex asks. Proceed.
 - **`CODEX_SETTINGS_CURRENT`** or **`CODEX_SETTINGS_SKIPPED: …`:** Proceed normally without mentioning it.
+
+## Step 0d — Project Activation (plugin installs)
+
+The cofounder plugin does not start on its own: the user starts it once per project (with `/cofounder:iniciar` or by asking for it). This step makes the project start it automatically in every later session, by writing the activation pointer into the project's `AGENTS.md` (and a `CLAUDE.md` that imports it). Run (resolve the path as in Step 0):
+
+```bash
+bash <this-skill-dir>/scripts/project-activation.sh
+```
+
+It only acts on plugin installs (Claude Code or Codex), and only in an empty folder or in a cofounder project (one with `docs/PRD.md` or `docs/INFRASTRUCTURE.md`). It keeps everything outside the file's cofounder block. It always exits `0` and prints one line:
+
+- **`ACTIVATION_UPDATED: …`:** Tell the user in one sentence that, from the next session on, the cofounder will start on its own in this project. Proceed.
+- **`ACTIVATION_BLOCKED: …`:** The file is not writable from the sandbox (Codex before its settings take effect). Run the same command again requesting escalated permissions (outside the sandbox), then handle that second run's line as described here. If it is blocked again, proceed without mentioning it: the step runs again next session.
+- **`ACTIVATION_CURRENT`** or **`ACTIVATION_SKIPPED: …`:** Proceed normally without mentioning it.
 
 ## Running the Check
 
@@ -175,4 +189,5 @@ When the pre-flight check passes but prints `NEEDS_` flags:
 - **`scripts/version-check.sh`**: compares the loaded version with the published one (Step 0)
 - **`scripts/claude-settings.sh`**: pins the project's Claude Code settings on plugin installs (Step 0b)
 - **`scripts/codex-settings.sh`**: configures the project's Codex sandbox and trust (Step 0c)
+- **`scripts/project-activation.sh`**: writes the project's activation pointer on plugin installs (Step 0d)
 - **`scripts/preflight.sh`** — Runs all environment validations and reports pass/fail with specific error codes
