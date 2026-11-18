@@ -54,7 +54,9 @@ jobs:
           echo "${GITLEAKS_SHA256}  ${tarball}" | sha256sum -c -
           tar -xzf "$tarball" gitleaks
       - name: gitleaks
-        run: ./gitleaks git . --redact --no-banner --verbose --exit-code 1
+        # The ignore list lives in .github/ as .txt: the Claude plugin directory
+        # rejects a root .gitleaksignore (not an allowed file type).
+        run: ./gitleaks git . --gitleaks-ignore-path .github/gitleaks-ignore.txt --redact --no-banner --verbose --exit-code 1
 
   workflow-lint:
     name: G3/G4 · Action Pinning & Workflow Lint

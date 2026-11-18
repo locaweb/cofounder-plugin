@@ -15,8 +15,9 @@
 #                    cofounder plugin detection.
 #   - claude-settings.sh : plugin-only settings pin (merge, idempotent).
 #   - codex-settings.sh : Codex sandbox + project trust (merge, idempotent).
-#   - hooks/session-start.sh : plugin activation only in empty folders and
-#                    cofounder projects, in Claude Code and in Codex.
+#   - project-activation.sh : the AGENTS.md/CLAUDE.md activation pointer on
+#                    plugin installs, only in empty folders and cofounder
+#                    projects, in Claude Code and in Codex.
 #   - repo-init.sh : the offline guard branches (usage, visibility, auth).
 #                    The real `gh repo create` path is real-infra → covered
 #                    later against a dedicated test org, not here.
@@ -394,65 +395,74 @@ vc v7 "$NONE" "$LOCAL_VERSION"
 expect "no clients: exit 0"           test "$(rc v7)" = 0
 expect "no clients: skipped"          file_contains "$LOG/v7.log" "VERSION_CHECK_SKIPPED"
 
-# --- hooks/session-start.sh: plugin activation only in cofounder projects ---
-SESSION_HOOK="$REPO/../hooks/session-start.sh"
-# hk <name> <project-dir> — run the hook as Claude Code does, logging stdout.
-hk() { CLAUDE_PROJECT_DIR="$2" "$BASH_BIN" "$SESSION_HOOK" >"$LOG/$1.log" 2>&1; }
-HK="$BASE/hook"; mkdir -p "$HK"
+# --- project-activation.sh: activation pointer on plugin installs only ------
+# (replaces the SessionStart hook, which the Claude plugin directory rejects)
+# pa <name> <script> <project-dir> — run project-activation.sh inside the project.
+pa() { (cd "$3" && HOME="$FAKEHOME" "$BASH_BIN" "$2" >"$LOG/$1.log" 2>&1); printf '%s' "$?" >"$LOG/$1.rc"; }
+PA="$BASE/activation"
+PA_PLUGIN="$PLUGIN_SKILL/scripts/project-activation.sh"
 ACTIVATION="cofounder:cofounder-playbook"
 
-echo "== session-start hook: empty folder → activates =="
-mkdir -p "$HK/empty"; hk h1 "$HK/empty"
-expect "activation text"              file_contains "$LOG/h1.log" "$ACTIVATION"
+echo "== project-activation: empty folder → pointer written =="
+mkdir -p "$PA/empty"; pa a1 "$PA_PLUGIN" "$PA/empty"
+expect "exit 0"                       test "$(rc a1)" = 0
+expect "ACTIVATION_UPDATED"           file_contains "$LOG/a1.log" "ACTIVATION_UPDATED: AGENTS.md CLAUDE.md"
+expect "AGENTS.md has the pointer"    file_contains "$PA/empty/AGENTS.md" "$ACTIVATION"
+expect "CLAUDE.md imports AGENTS.md"  file_contains "$PA/empty/CLAUDE.md" "@AGENTS.md"
 
-echo "== session-start hook: only installer files and git → activates =="
-mkdir -p "$HK/fresh/.git" "$HK/fresh/.claude"; touch "$HK/fresh/AGENTS.md" "$HK/fresh/.gitignore"; hk h2 "$HK/fresh"
-expect "activation text"              file_contains "$LOG/h2.log" "$ACTIVATION"
+echo "== project-activation: second run → current, files untouched =="
+cp "$PA/empty/AGENTS.md" "$LOG/a1.agents"; pa a2 "$PA_PLUGIN" "$PA/empty"
+expect "ACTIVATION_CURRENT"           file_contains "$LOG/a2.log" "ACTIVATION_CURRENT"
+expect "AGENTS.md unchanged"          cmp -s "$PA/empty/AGENTS.md" "$LOG/a1.agents"
 
-echo "== session-start hook: cofounder project (docs/PRD.md) → activates =="
-mkdir -p "$HK/proj/docs" "$HK/proj/backend"; touch "$HK/proj/docs/PRD.md"; hk h3 "$HK/proj"
-expect "activation text"              file_contains "$LOG/h3.log" "$ACTIVATION"
+echo "== project-activation: cofounder project with user's AGENTS.md → block appended, content kept =="
+mkdir -p "$PA/proj/docs" "$PA/proj/backend"; touch "$PA/proj/docs/PRD.md"; printf '# Minhas regras\n' >"$PA/proj/AGENTS.md"
+pa a3 "$PA_PLUGIN" "$PA/proj"
+expect "ACTIVATION_UPDATED"           file_contains "$LOG/a3.log" "ACTIVATION_UPDATED"
+expect "user content kept"            file_contains "$PA/proj/AGENTS.md" "# Minhas regras"
+expect "pointer appended"             file_contains "$PA/proj/AGENTS.md" "$ACTIVATION"
 
-echo "== session-start hook: unrelated project → silent =="
-mkdir -p "$HK/other/src"; touch "$HK/other/package.json"; hk h4 "$HK/other"
-refute "no activation text"           file_contains "$LOG/h4.log" "$ACTIVATION"
+echo "== project-activation: old npx pointer block → replaced by the plugin pointer =="
+mkdir -p "$PA/old"; printf 'top\n<!-- cofounder:begin -->\nold npx pointer\n<!-- cofounder:end -->\nbottom\n' >"$PA/old/AGENTS.md"
+pa a4 "$PA_PLUGIN" "$PA/old"
+refute "old block gone"               file_contains "$PA/old/AGENTS.md" "old npx pointer"
+expect "plugin pointer in place"      file_contains "$PA/old/AGENTS.md" "$ACTIVATION"
+expect "surrounding text kept"        test "$(head -1 "$PA/old/AGENTS.md")$(tail -1 "$PA/old/AGENTS.md")" = "topbottom"
+expect "one block only"               test "$(grep -c 'cofounder:begin' "$PA/old/AGENTS.md")" = 1
 
-echo "== session-start hook: npx skills install present → silent =="
-mkdir -p "$HK/npx/.claude/skills/cofounder-playbook"; touch "$HK/npx/.claude/skills/cofounder-playbook/SKILL.md"; hk h5 "$HK/npx"
-refute "no activation text"           file_contains "$LOG/h5.log" "$ACTIVATION"
+echo "== project-activation: unrelated project → skipped, nothing written =="
+mkdir -p "$PA/other/src"; touch "$PA/other/package.json"; pa a5 "$PA_PLUGIN" "$PA/other"
+expect "ACTIVATION_SKIPPED"           file_contains "$LOG/a5.log" "ACTIVATION_SKIPPED: not a cofounder project yet"
+expect "no AGENTS.md"                 test ! -e "$PA/other/AGENTS.md"
 
-# hkc <name> <project-dir> — run the hook as Codex does: PLUGIN_ROOT set, no
-# CLAUDE_PROJECT_DIR, the session's cwd in the JSON on stdin.
-hkc() {
-  printf '{"session_id":"s","cwd":"%s","hook_event_name":"SessionStart","source":"startup"}\n' "$2" \
-    | (cd "$BASE" && env -u CLAUDE_PROJECT_DIR PLUGIN_ROOT=/codex-plugin CLAUDE_PLUGIN_ROOT=/codex-plugin "$BASH_BIN" "$SESSION_HOOK") >"$LOG/$1.log" 2>&1
-}
-CODEX_ACTIVATION="/codex-plugin/skills/cofounder-playbook/SKILL.md"
+echo "== project-activation: npx skills install present → skipped =="
+mkdir -p "$PA/npx/.claude/skills/cofounder-playbook"; touch "$PA/npx/.claude/skills/cofounder-playbook/SKILL.md"
+pa a6 "$PA_PLUGIN" "$PA/npx"
+expect "ACTIVATION_SKIPPED"           file_contains "$LOG/a6.log" "ACTIVATION_SKIPPED: npx skills install present"
+expect "no AGENTS.md"                 test ! -e "$PA/npx/AGENTS.md"
 
-echo "== session-start hook (Codex): empty folder from stdin cwd → activates with the skill path =="
-hkc hc1 "$HK/empty"
-expect "codex activation text"        file_contains "$LOG/hc1.log" "$CODEX_ACTIVATION"
-refute "no Claude Skill-tool text"    file_contains "$LOG/hc1.log" "$ACTIVATION"
+echo "== project-activation: npx skills (not a plugin) → skipped =="
+mkdir -p "$PA/npxonly"; pa a7 "$NPX_SKILL/scripts/project-activation.sh" "$PA/npxonly"
+expect "ACTIVATION_SKIPPED"           file_contains "$LOG/a7.log" "ACTIVATION_SKIPPED: not a plugin install"
+expect "no AGENTS.md"                 test ! -e "$PA/npxonly/AGENTS.md"
 
-echo "== session-start hook (Codex): cofounder project → activates =="
-hkc hc2 "$HK/proj"
-expect "codex activation text"        file_contains "$LOG/hc2.log" "$CODEX_ACTIVATION"
+echo "== project-activation: Codex plugin install → pointer written =="
+mkdir -p "$PA/codex"; pa a8 "$CODEX_SKILL/scripts/project-activation.sh" "$PA/codex"
+expect "ACTIVATION_UPDATED"           file_contains "$LOG/a8.log" "ACTIVATION_UPDATED"
+expect "AGENTS.md has the pointer"    file_contains "$PA/codex/AGENTS.md" "cofounder-playbook"
 
-echo "== session-start hook (Codex): unrelated project → silent =="
-hkc hc3 "$HK/other"
-expect "empty output"                 test ! -s "$LOG/hc3.log"
+echo "== project-activation: read-only project → blocked, exit 0 =="
+if [[ "$(id -u)" != 0 ]]; then
+  mkdir -p "$PA/ro"; chmod a-w "$PA/ro"; pa a9 "$PA_PLUGIN" "$PA/ro"; chmod u+w "$PA/ro"
+  expect "exit 0"                     test "$(rc a9)" = 0
+  expect "ACTIVATION_BLOCKED"         file_contains "$LOG/a9.log" "ACTIVATION_BLOCKED"
+else
+  printf '  SKIP  project-activation read-only (running as root)\n'
+fi
 
-echo "== session-start hook: only .codex settings → still a new project, Claude and Codex =="
-mkdir -p "$HK/codexcfg/.codex"; touch "$HK/codexcfg/.codex/config.toml"
-hkc hc5 "$HK/codexcfg"; hk h7 "$HK/codexcfg"
-expect "codex activates"              file_contains "$LOG/hc5.log" "$CODEX_ACTIVATION"
-expect "claude activates"             file_contains "$LOG/h7.log" "$ACTIVATION"
-
-echo "== session-start hook: npx skills under .agents → silent on Codex, Claude unchanged =="
-mkdir -p "$HK/agents/.agents/skills/cofounder-playbook"; touch "$HK/agents/.agents/skills/cofounder-playbook/SKILL.md"
-hkc hc4 "$HK/agents"; hk h6 "$HK/agents"
-expect "codex silent"                 test ! -s "$LOG/hc4.log"
-expect "claude still activates"       file_contains "$LOG/h6.log" "$ACTIVATION"
+echo "== project-activation: pointer matches install.sh's PLUGIN_POINTER =="
+pointer_of() { sed -n 's/^PLUGIN_POINTER=//p' "$1"; }
+expect "same pointer text"            test "$(pointer_of "$PF_SRC/scripts/project-activation.sh")" = "$(pointer_of "$REPO/../skills/cofounder-computer-setup/scripts/install.sh")"
 
 # --- claude-settings.sh: pins .claude/settings.json on plugin installs only --
 # cs <name> <script> <project-dir> — run claude-settings.sh inside the project.

@@ -39,6 +39,8 @@ Inside Claude Code, run:
 /plugin install cofounder@locaweb
 ```
 
+To start, open Claude Code in your project folder and run `/cofounder:iniciar` (or ask something like "I want to build an app"). The first time, the cofounder writes an `AGENTS.md` and a `CLAUDE.md` into the project: from the next session on, it starts on its own in that folder.
+
 To get updates automatically, turn on auto-update in `/plugin` → **Marketplaces** → **locaweb** → **Enable auto-update**. To update manually, run `claude plugin update cofounder@locaweb` in your terminal.
 
 ### As a Codex plugin
@@ -49,7 +51,17 @@ In your terminal, add the marketplace:
 codex plugin marketplace add locaweb/cofounder-plugin
 ```
 
-Then open `codex`, run `/plugins`, install **cofounder** from the **locaweb** marketplace and start a new session. In your first session, approve the cofounder hook in `/hooks`: it activates the cofounder at the start of every session. Also in the first session, the cofounder asks for your approval once to configure the project (`.codex/config.toml` with full access, and the folder marked as trusted in Codex), so it can install tools and run commands without asking every time; this takes effect from the next session. To update, run `codex plugin marketplace upgrade locaweb`.
+Then open `codex`, run `/plugins`, install **cofounder** from the **locaweb** marketplace and start a new session. In your first session in each project, ask to use the cofounder (for example, "I want to build an app with the cofounder"); it writes an `AGENTS.md` into the project and, from the next session on, starts on its own in that folder. Also in the first session, the cofounder asks for your approval once to configure the project (`.codex/config.toml` with full access, and the folder marked as trusted in Codex), so it can install tools and run commands without asking every time; this takes effect from the next session. To update, run `codex plugin marketplace upgrade locaweb`.
+
+## How the cofounder starts
+
+The plugin runs nothing on its own when a session starts: the cofounder only acts after you call it.
+
+1. **First time in a project:** open your agent in an empty folder (for a new project) or in a project the cofounder created, and run `/cofounder:iniciar` in Claude Code. In Codex, ask to use the cofounder. Usually, asking something like "I want to build an app" is enough.
+2. **Project activation:** in that first session, the cofounder writes an instructions block into the project's `AGENTS.md` and a `CLAUDE.md` that imports it. If those files already exist, what you wrote is kept.
+3. **Next sessions:** the agent reads those files when it opens the folder and starts the cofounder on its own, without `/cofounder:iniciar`.
+
+To turn it off in a project, delete the block between `<!-- cofounder:begin -->` and `<!-- cofounder:end -->` in `AGENTS.md` and `CLAUDE.md`.
 
 ## Use cases
 

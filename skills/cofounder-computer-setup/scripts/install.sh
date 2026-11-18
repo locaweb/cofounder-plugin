@@ -14,8 +14,8 @@
 #          (auto-detecting the installed agent: Claude / Codex / Cursor / …)
 #        - Writes the AGENTS.md activation pointer (+ CLAUDE.md @import)
 #        - Pins .claude/settings.json when Claude is detected
-#        - Skips the skills, AGENTS.md and CLAUDE.md when the cofounder Claude
-#          Code plugin is already installed (it brings its own)
+#        - Skips the skills when the cofounder Claude Code plugin is already
+#          installed (it brings its own); the pointer then names the plugin
 #        - Appends .gitignore entries for the vendored skills
 #
 # Idempotent — safe to re-run. Detects existing tools before installing and
@@ -437,6 +437,10 @@ SKILLS_CLI_VERSION="1.7.4"
 BEGIN_MARKER="<!-- cofounder:begin -->"
 END_MARKER="<!-- cofounder:end -->"
 
+# Activation pointer for projects that use the cofounder plugin. Keep in sync
+# with PLUGIN_POINTER in skills/cofounder-pre-flight-check/scripts/project-activation.sh.
+PLUGIN_POINTER="You are operating as a cofounder. Your FIRST action this session — before responding to or acting on the user's message, even if it is a specific task, question, or feature request — MUST be to load the \`cofounder-playbook\` skill of the cofounder plugin (in Claude Code, use the Skill tool to invoke \`cofounder:cofounder-playbook\`; in other agents, invoke it by the name their skills listing shows), then follow it as your operating instructions for the entire session. Do not begin the user's request until the playbook is loaded. (If the cofounder plugin is not installed, tell the user to install it as described in https://github.com/locaweb/cofounder-plugin and to start a new session.)"
+
 # upsert_managed_block <file> <body> — replace the managed region between the
 # cofounder markers, creating the file or appending the block as needed.
 # Idempotent; also rewrites any older managed block left by a past install.
@@ -583,12 +587,16 @@ project_bootstrap() {
   if [[ -e "$claude_home" ]]; then
     write_claude_settings   # pins Claude settings and creates .claude/ as a side effect
     agents+=(claude-code)
-    # The plugin already brings the skills and activates them via its
-    # SessionStart hook; an `npx skills` copy next to it would take over the
-    # project (the hook yields to it) and update through the wrong channel.
+    # The plugin already brings the skills; an `npx skills` copy next to it
+    # would take over the project and update through the wrong channel. The
+    # plugin has no SessionStart hook (the Claude plugin directory only accepts
+    # hooks from Verified organizations), so the project's AGENTS.md activates
+    # it, with the same pointer the pre-flight's project-activation.sh writes.
     if cofounder_plugin_enabled "$claude_home"; then
+      upsert_managed_block "$PWD/AGENTS.md" "$PLUGIN_POINTER"
+      upsert_managed_block "$PWD/CLAUDE.md" "The cofounder operating instructions are maintained in @AGENTS.md — read and follow them."
       append_gitignore
-      ok "Plugin cofounder do Claude Code detectado: skills e ativação ficam por conta dele."
+      ok "Plugin cofounder do Claude Code detectado: as skills ficam por conta dele."
       return
     fi
   fi
