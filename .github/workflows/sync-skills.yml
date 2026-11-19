@@ -1,0 +1,171 @@
+# Sync Skills
+#
+# The skills are developed in locaweb/cofounder; this repo only packages them
+# as a Claude Code / Codex plugin. This workflow copies skills/ from a v* tag of
+# locaweb/cofounder, stamps that tag's version into both plugin manifests and
+# opens a PR. Never edit skills/ here by hand: the next sync overwrites it.
+#
+# Runs daily (takes the newest tag, only when it is newer than the plugin) or
+# on demand with a specific tag. A tag older than the plugin is refused: a
+# published version never goes backwards.
+
+name: Sync Skills
+
+on:
+  schedule:
+    - cron: "0 9 * * *"     # daily 09:00 UTC
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "locaweb/cofounder tag to copy (e.g. v0.29.1). Empty: the newest tag."
+        required: false
+        default: ""
+
+permissions: {}
+
+concurrency:
+  group: sync-skills
+
+jobs:
+  sync:
+    name: Copy skills from locaweb/cofounder
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write        # dispatch the security gate on the bot branch
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      - name: Resolve tag
+        id: tag
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [ -n "${INPUT_TAG:-}" ]; then
+            tag="$INPUT_TAG"
+          else
+            tag=$(git ls-remote --tags --refs https://github.com/locaweb/cofounder.git 'v*' \
+              | sed 's#.*refs/tags/##' \
+              | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+              | sort -V | tail -1 || true)
+            if [ -z "$tag" ]; then
+              echo "sync=false" >> "$GITHUB_OUTPUT"
+              echo "locaweb/cofounder has no v* tag yet; nothing to do." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+          fi
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::No valid locaweb/cofounder tag (got '${tag}')"
+            exit 1
+          fi
+          version="${tag#v}"
+          current=$(jq -r .version .claude-plugin/plugin.json)
+          newest=$(printf '%s\n%s\n' "$current" "$version" | sort -V | tail -1)
+          if [ "$version" = "$current" ]; then
+            echo "sync=false" >> "$GITHUB_OUTPUT"
+            echo "Plugin already at $current (newest tag: $tag); nothing to do." >> "$GITHUB_STEP_SUMMARY"
+          elif [ "$newest" != "$version" ]; then
+            if [ -n "${INPUT_TAG:-}" ]; then
+              echo "::error::$tag is older than the plugin ($current); a published version never goes backwards"
+              exit 1
+            fi
+            echo "sync=false" >> "$GITHUB_OUTPUT"
+            echo "Plugin ($current) is ahead of the newest tag ($tag); nothing to do." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "sync=true" >> "$GITHUB_OUTPUT"
+            echo "Syncing skills: $current -> $version ($tag)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          {
+            echo "tag=$tag"
+            echo "version=$version"
+            echo "current=$current"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        if: steps.tag.outputs.sync == 'true'
+        with:
+          repository: locaweb/cofounder
+          ref: ${{ steps.tag.outputs.tag }}
+          path: upstream
+          persist-credentials: false
+
+      - name: Copy skills and stamp the version
+        if: steps.tag.outputs.sync == 'true'
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          upstream_version=$(jq -r .version upstream/.claude-plugin/plugin.json)
+          if [ "$upstream_version" != "$VERSION" ]; then
+            echo "::error::locaweb/cofounder plugin.json is $upstream_version at tag v$VERSION"
+            exit 1
+          fi
+          rsync -a --delete upstream/skills/ skills/
+          for f in .claude-plugin/plugin.json .codex-plugin/plugin.json; do
+            jq --arg v "$VERSION" '.version = $v' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+          done
+
+      - name: Check the copy
+        if: steps.tag.outputs.sync == 'true'
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          set -euo pipefail
+          marker=$(grep -oE 'COFOUNDER_VERSION: [0-9]+\.[0-9]+\.[0-9]+' \
+            skills/cofounder-pre-flight-check/SKILL.md | cut -d' ' -f2)
+          claude=$(jq -r .version .claude-plugin/plugin.json)
+          codex=$(jq -r .version .codex-plugin/plugin.json)
+          if [ "$marker" != "$VERSION" ] || [ "$claude" != "$VERSION" ] || [ "$codex" != "$VERSION" ]; then
+            echo "::error::Version mismatch: tag $VERSION, marker ${marker:-missing}, Claude manifest $claude, Codex manifest $codex"
+            exit 1
+          fi
+          diff -r upstream/skills skills
+          echo "skills/ identical to locaweb/cofounder v$VERSION" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create or update PR
+        if: steps.tag.outputs.sync == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          CURRENT: ${{ steps.tag.outputs.current }}
+        run: |
+          set -euo pipefail
+          branch="auto/sync-skills-${TAG}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$branch"
+          git add skills/ .claude-plugin/plugin.json .codex-plugin/plugin.json
+          stat=$(git diff --cached --stat | tail -1)
+          git commit -m "chore: skills do locaweb/cofounder ${TAG}"
+          # Force: a re-run for the same tag replaces the bot branch; deleting it
+          # instead would close an open PR.
+          git push --force -u origin "$branch"
+
+          if [ -z "$(gh pr list --head "$branch" --state open --json number --jq '.[0].number')" ]; then
+            gh pr create \
+              --title "chore: skills do locaweb/cofounder ${TAG}" \
+              --body "$(cat <<EOF
+          Cópia automática do \`skills/\` do [locaweb/cofounder ${TAG}](https://github.com/locaweb/cofounder/releases/tag/${TAG}), aberta pelo workflow **Sync Skills**.
+
+          | | Versão |
+          |---|---|
+          | **Plugin hoje** | \`${CURRENT}\` |
+          | **Depois do merge** | \`${TAG#v}\` |
+
+          - \`skills/\` idêntico ao da tag (conferido com \`diff -r\`).
+          - Versão gravada em \`.claude-plugin/plugin.json\` e \`.codex-plugin/plugin.json\`.
+          - Mudanças desta versão: [CHANGELOG do locaweb/cofounder](https://github.com/locaweb/cofounder/blob/${TAG}/CHANGELOG.md).
+
+          ${stat}
+
+          Depois do merge, o workflow **Release** cria a tag \`${TAG}\` e publica a Release do plugin.
+          EOF
+          )"
+          fi
+
+          # PRs opened with GITHUB_TOKEN don't trigger pull_request workflows;
+          # dispatch the gate explicitly so the PR gets its required checks.
+          gh workflow run security-gate.yml --ref "$branch"
+          echo "PR for \`$branch\` awaiting review" >> "$GITHUB_STEP_SUMMARY"

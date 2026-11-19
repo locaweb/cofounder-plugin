@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="shared/brand/icon-512.svg" alt="cofounder" width="128" height="128">
+  <img src="shared/brand/icon-512.png" alt="cofounder" width="128" height="128">
 </p>
 
 # cofounder
@@ -16,7 +16,7 @@ The cofounder is a set of [skills](skills/) for your coding agent (Claude Code, 
 
 ## Installation
 
-Download `install.sh` from the latest GitHub Release and check it as described in [Verifying the installation](#verifying-the-installation). Then open a terminal in the folder where you want to create your project and run:
+Download `install.sh` from the latest [locaweb/cofounder release](https://github.com/locaweb/cofounder/releases/latest) and check it as described in [Verifying the installation](#verifying-the-installation). Then open a terminal in the folder where you want to create your project and run:
 
 ```bash
 bash install.sh
@@ -87,18 +87,22 @@ The skills are **static files installed locally** in your project: Markdown inst
 
 ### Verifying the installation
 
-Each version is published as a [GitHub Release](https://github.com/locaweb/cofounder-plugin/releases) with `install.sh`, a tarball of the `skills/` directory and a `SHA256SUMS` file. The artifacts carry provenance attestations proving they were built by the `release.yml` workflow from a specific commit of this repository. To verify them, use an authenticated [GitHub CLI](https://cli.github.com):
+`install.sh` and a tarball of the skills are published as [GitHub Releases of locaweb/cofounder](https://github.com/locaweb/cofounder/releases), where the skills are developed; each plugin version is published as a [GitHub Release of this repository](https://github.com/locaweb/cofounder-plugin/releases) with a tarball of the plugin. Every artifact comes with a `SHA256SUMS` file and a provenance attestation proving it was built by the `release.yml` workflow of its repository from a specific commit. To verify them, use an authenticated [GitHub CLI](https://cli.github.com):
 
 ```bash
-VERSION=v0.26.1
-gh release download "$VERSION" --repo locaweb/cofounder-plugin --dir "cofounder-$VERSION"
+VERSION=v0.29.1
+gh release download "$VERSION" --repo locaweb/cofounder --dir "cofounder-$VERSION"
 cd "cofounder-$VERSION"
 sha256sum -c SHA256SUMS   # on macOS: shasum -a 256 -c SHA256SUMS
-gh attestation verify install.sh --repo locaweb/cofounder-plugin
-gh attestation verify "cofounder-skills-$VERSION.tar.gz" --repo locaweb/cofounder-plugin
+gh attestation verify install.sh --repo locaweb/cofounder
+gh attestation verify "cofounder-skills-$VERSION.tar.gz" --repo locaweb/cofounder
 ```
 
-If everything passes, run the verified `install.sh` with `bash install.sh`.
+If everything passes, run the verified `install.sh` with `bash install.sh`. For the plugin tarball, download the same version with `--repo locaweb/cofounder-plugin` and run `gh attestation verify "cofounder-plugin-$VERSION.tar.gz" --repo locaweb/cofounder-plugin`.
+
+## Development
+
+The skills are developed in [locaweb/cofounder](https://github.com/locaweb/cofounder), which also serves `npx skills` installs. This repository's `skills/` folder is a copy of one of its tags, made by the `sync-skills.yml` workflow: do not edit it here, the next copy overwrites it. Only the plugin manifests, the `/cofounder:iniciar` command and the sync and release workflows live here.
 
 ## Support
 

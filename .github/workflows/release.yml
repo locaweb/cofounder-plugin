@@ -1,8 +1,9 @@
 # Release
 #
-# Publishes a GitHub Release with provenance attestations for every v* tag.
-# The tag is created on main by scripts/tag-github-release.sh as the last step
-# of the Azure → GitHub sync, and must match .claude-plugin/plugin.json.
+# Publishes a GitHub Release, with provenance attestations, whenever main
+# carries a plugin version that has no tag yet here but has the same tag in
+# locaweb/cofounder (normally right after a Sync Skills PR is merged). The tag is created here, together with the Release:
+# a tag pushed with GITHUB_TOKEN would not trigger another workflow.
 #
 # Verify an artifact with:
 #   gh attestation verify <artifact> --repo locaweb/cofounder-plugin
@@ -11,64 +12,86 @@ name: Release
 
 on:
   push:
-    tags: ["v*"]
+    branches: [main]
+  workflow_dispatch:
 
 permissions: {}
 
 concurrency:
-  group: release-${{ github.ref_name }}
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     name: Build, Attest & Publish
     runs-on: ubuntu-latest
     permissions:
-      contents: write       # create the GitHub Release
+      contents: write       # create the tag and the GitHub Release
       id-token: write       # OIDC token for the Sigstore signing certificate
       attestations: write   # store the attestations in the repository
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09  # v5.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          fetch-depth: 0
           persist-credentials: false
 
-      - name: Check tag against plugin.json and main
+      - name: Check version
+        id: version
         env:
-          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          set -euo pipefail
           version=$(jq -r .version .claude-plugin/plugin.json)
-          if [ "$TAG" != "v$version" ]; then
-            echo "::error::Tag $TAG does not match plugin.json version $version (expected v$version)"
+          codex=$(jq -r .version .codex-plugin/plugin.json)
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::.claude-plugin/plugin.json has an invalid version: $version"
             exit 1
           fi
-          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
-            echo "::error::Tag $TAG points to $GITHUB_SHA, which is not on main"
+          if [ "$codex" != "$version" ]; then
+            echo "::error::.codex-plugin/plugin.json is $codex but .claude-plugin/plugin.json is $version"
             exit 1
           fi
+          tag="v$version"
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$tag" >/dev/null 2>&1; then
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "$tag already released; nothing to do." >> "$GITHUB_STEP_SUMMARY"
+          elif [ -z "$(git ls-remote --tags https://github.com/locaweb/cofounder.git "refs/tags/$tag")" ]; then
+            # Every plugin version is a copy of a locaweb/cofounder tag (Sync
+            # Skills); a version without one was not synced and is not released.
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            echo "locaweb/cofounder has no $tag; not releasing skills that did not come from a sync." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
       - name: Build artifacts
+        if: steps.version.outputs.release == 'true'
         env:
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
+          set -euo pipefail
           mkdir dist
-          git archive --format=tar.gz -o "dist/cofounder-skills-${TAG}.tar.gz" "$GITHUB_SHA" skills
-          cp skills/cofounder-computer-setup/scripts/install.sh dist/install.sh
+          # The plugin as the marketplaces install it: everything but CI files.
+          git archive --format=tar.gz --prefix="cofounder-plugin-${TAG}/" \
+            -o "dist/cofounder-plugin-${TAG}.tar.gz" "$GITHUB_SHA" -- . ':(exclude).github'
           (cd dist && sha256sum -- * > SHA256SUMS)
           cat dist/SHA256SUMS >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8  # v4.2.2
+        if: steps.version.outputs.release == 'true'
         with:
-          subject-path: |
-            dist/cofounder-skills-${{ github.ref_name }}.tar.gz
-            dist/install.sh
+          subject-path: dist/cofounder-plugin-${{ steps.version.outputs.tag }}.tar.gz
 
       - name: Publish GitHub Release
+        if: steps.version.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
+          set -euo pipefail
           gh release create "$TAG" dist/* \
             --repo "$GITHUB_REPOSITORY" \
-            --verify-tag \
+            --target "$GITHUB_SHA" \
             --title "$TAG" \
+            --notes "Skills do [locaweb/cofounder ${TAG}](https://github.com/locaweb/cofounder/releases/tag/${TAG}) — veja o [CHANGELOG](https://github.com/locaweb/cofounder/blob/${TAG}/CHANGELOG.md)." \
             --generate-notes
